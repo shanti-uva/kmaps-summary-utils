@@ -2,7 +2,7 @@
 
 This project contains JavaScript libraries that help build the summary section for the related features tab. The plugin and libraries depend on jQuery so be sure to have it installed. The Summary is usually paired with the Relations Tree, if you are looking for the [Kmaps Relations Tree](https://github.com/shanti-uva/kmaps-relations-tree) click [here](https://github.com/shanti-uva/kmaps-relations-tree). 
 
-If you want to see a demo of the Summary tab visit [PLACES](staging-places.kmaps.virginia.edu/features/637#show_relationship=places) and hit the `Summary` tab.
+If you want to see a demo of the Summary tab visit [PLACES](http://staging-places.kmaps.virginia.edu/features/637#show_relationship=places) and hit the `Summary` tab.
 
 ## Getting Started
 
