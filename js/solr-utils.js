@@ -60,10 +60,10 @@
     var plugin = this;
     var container = $('.'+plugin.settings.domain+'-in-'+plugin.settings.domain);
 
-    var feature_name = $(feature_label)[0];
+    var feature_name = feature_label;
     for(var key in data[group_key]){ //parent,child, other
       var feature_block = jQuery('<div></div>').addClass('feature-block');
-      var header = jQuery('<h6></h6>').html(feature_name.innerText +" "+ key);
+      var header = jQuery('<h6></h6>').html(feature_name +" "+ key);
       feature_block.append(header);
       var relation_subject_list = jQuery('<ul class="collapsibleList"></ul>');
       var relation_subjects_ordered = Object.keys(data[group_key][key]).sort();
@@ -156,11 +156,11 @@
     var plugin = this;
     var container = $('.'+plugin.settings.domain+'-in-'+plugin.settings.domain);
 
-    var feature_name = $(feature_label)[0];
+    var feature_name = feature_label;
     for(var key in data[group_key]){ //parent,child, other
             var feature_block = jQuery('<div></div>').addClass('feature-block');
             var header = jQuery('<h6></h6>').append(jQuery('<span class="glyphicon"></span> '));
-            header.append(feature_name.innerText +" "+ key);
+            header.append(feature_name +" "+ key);
             var relation_subject_list = jQuery('<ul style="list-stype:none;" class="collapsibleList"></ul>');
             var relation_subject_item = jQuery('<li class="collapsible_list_header"></li>');
             relation_subject_item.append(header);
@@ -232,6 +232,130 @@
         dfd.resolve(result);
       } else {
         dfd.resolve([]);
+      }
+    });
+    return dfd.promise();
+  }
+  //Popup functions
+  Plugin.getNodeInfo =    function getNodeInfo(featuresPath) {
+    var plugin = this;
+    const dfd = $.Deferred();
+    var nodeinfo = [];
+    nodeinfo['always']='present';
+    var url = plugin.settings.termIndex + '/select?q=id:' + plugin.settings.featureId + '&fl=header,ancestor*&wt=json&json.wrf=?';
+    $.ajax({
+      url: url,
+      dataType: 'jsonp',
+      jsonp: 'json.wrf',
+      error: function (e) {
+        console.error(e);
+        dfd.resolve([]);
+      },
+      beforesend: function () {
+      },
+
+      success: function (data) {
+        var doc = data.response.docs[0];
+        var ancestorskey  = "ancestor_ids_" + plugin.settings.perspective;
+        var ancestorsnamekey  = "ancestors_" + plugin.settings.perspective;
+        if( doc[ancestorskey] === undefined ) {
+          ancestorskey  = "ancestor_ids_closest_" + plugin.settings.perspective;
+          ancestorsnamekey  = "ancestors_closest_" + plugin.settings.perspective;
+        }
+        nodeinfo['ancestors'] = doc[ancestorskey] === undefined ? "" : doc[ancestorskey].reduce(function(acc,val,index){
+          var currancestor = "<a href='"+featuresPath.replace("%%id%%",val)+"'>"+doc[ancestorsnamekey][index]+"</a>"
+          acc += "/"+currancestor;
+          return acc;
+        }, "");
+        nodeinfo['title'] = "<strong>" + doc["header"] + "</strong>";
+        dfd.resolve(nodeinfo);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getNodeAssetCount =    function getNodeAssetCount(key,project_filter,title) {
+    var plugin = this;
+    const dfd = $.Deferred();
+    // Update counts from asset index
+    var assetCountsUrl =
+      plugin.settings.assetIndex + '/select?q=kmapid:' + key + project_filter + '&start=0&facets=on&group=true&group.field=asset_type&group.facet=true&group.ngroups=true&group.limit=0&wt=json&json.wrf=?';
+    $.ajax({
+      type: "GET",
+      url: assetCountsUrl,
+      dataType: "jsonp",
+      jsonp: 'json.wrf',
+      timeout: 90000,
+      error: function (e) {
+        console.error(e);
+        dfd.resolve([]);
+      },
+      success: function (data) {
+        var updates = {};
+        // extract the group counts -- index by groupValue
+        $.each(data.grouped.asset_type.groups, function (x, y) {
+          var asset_type = y.groupValue;
+          var asset_count = y.doclist.numFound;
+          updates[asset_type] = asset_count;
+        });
+        dfd.resolve(updates);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getNodeRelatedCount =    function getNodeRelatedCount(key,project_filter,title) {
+    var plugin = this;
+    const dfd = $.Deferred();
+    var relatedCountsUrl =
+      plugin.settings.termIndex + '/select?q={!child of=block_type:parent}id:' + key + project_filter + '&wt=json&indent=true&group=true&group.field=block_child_type&group.limit=0&wt=json&json.wrf=?';
+    $.ajax({
+      type: "GET",
+      url: relatedCountsUrl,
+      dataType: "jsonp",
+      jsonp: 'json.wrf',
+      timeout: 90000,
+      error: function (e) {
+        console.error(e);
+        dfd.resolve([]);
+      },
+      success: function (data) {
+        var updates = {};
+
+        // extract the group counts -- index by groupValue
+        $.each(data.grouped.block_child_type.groups, function (x, y) {
+          var block_child_type = y.groupValue;
+          var rel_count = y.doclist.numFound;
+          updates[block_child_type] = rel_count;
+        });
+
+        dfd.resolve(updates);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getNodeSubjectsRelatedPlacesCount =    function getNodeSubjectsRelatedPlacesCount(key,title) {
+    var plugin = this;
+    const dfd = $.Deferred();
+    var subjectsRelatedPlacesCountQuery = plugin.settings.termIndex + "/select?indent=on&q={!parent%20which=block_type:parent}related_subject_uid_s:" + key + "&wt=json&json.wrf=?&group=true&group.field=tree&group.limit=0";
+
+    $.ajax({
+      type: "GET",
+      url: subjectsRelatedPlacesCountQuery,
+      dataType: "jsonp",
+      jsonp: 'json.wrf',
+      timeout: 90000,
+      error: function (e) {
+        console.error(e);
+        dfd.resolve([]);
+      },
+      success: function (data) {
+        var updates = {};
+        // extract the group counts -- index by groupValue
+        $.each(data.grouped.tree.groups, function (x, y) {
+          var tree = y.groupValue;
+          var rel_count = y.doclist.numFound;
+          updates["related_" + tree] = rel_count;
+        });
+        dfd.resolve(updates);
       }
     });
     return dfd.promise();
