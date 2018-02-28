@@ -29,7 +29,7 @@
     this.settings = $.extend({}, defaults, options);
     return plugin;
   };
-  Plugin.getDirectDescendatCount = function(){
+  Plugin.getDirectDescendantCount = function(){
     var plugin = this;
     var dfd = $.Deferred();
     var relatedCountsUrl =
@@ -237,12 +237,12 @@
     return dfd.promise();
   }
   //Popup functions
-  Plugin.getNodeInfo =    function getNodeInfo(featuresPath) {
+  Plugin.getNodeInfo =    function getNodeInfo(currentFeatureId,featuresPath) {
     var plugin = this;
     const dfd = $.Deferred();
     var nodeinfo = [];
     nodeinfo['always']='present';
-    var url = plugin.settings.termIndex + '/select?q=id:' + plugin.settings.featureId + '&fl=header,ancestor*&wt=json&json.wrf=?';
+    var url = plugin.settings.termIndex + '/select?q=id:' + currentFeatureId + '&fl=header,ancestor*&wt=json&json.wrf=?';
     $.ajax({
       url: url,
       dataType: 'jsonp',

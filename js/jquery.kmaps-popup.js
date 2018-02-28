@@ -26,7 +26,7 @@
     defaults = {
       featuresPath: "/features/%%ID%%",
       domain: "places",
-      featureId: 1,
+      featureId: "",
       mandalaURL: "https://mandala.shanti.virginia.edu/%%APP%%/%%ID%%/%%REL%%/nojs",
       solrUtils: {} //requires solr-utils.js library
     };
@@ -109,8 +109,9 @@
             $("body > .popover").removeClass("related-resources-popover"); // target css styles on search tree popups
             $("body > .popover").addClass("search-popover"); // target css styles on search tree popups
 
+          jQuery(elem).attr('rel', 'popover');
             var popOverContent = $("#popover-content-"+key);
-            var nodeInfoAsync = plugin.options.solrUtils.getNodeInfo(plugin.options.featuresPath);
+            var nodeInfoAsync = plugin.options.solrUtils.getNodeInfo(jQuery(x.target).data("id"),plugin.options.featuresPath);
             nodeInfoAsync.then(function(nodeInfo){
               var ancestorsPath = nodeInfo['ancestors'] === undefined ? "" : nodeInfo['ancestors'];
               var title = nodeInfo['title'] === undefined ? "" : nodeInfo['title'];
