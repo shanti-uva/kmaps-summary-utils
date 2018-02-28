@@ -93,7 +93,7 @@ Most of the functions provided by the library return promises so take that into 
 
 ```javascript
   //Related Counts on Solr
-  relatedSolrUtils.getDirectDescendatCount().then(function(count){
+  relatedSolrUtils.getDirectDescendantCount().then(function(count){
       $(".relatedCountContainer").each(function(){
           $(this).html(count);
       });
