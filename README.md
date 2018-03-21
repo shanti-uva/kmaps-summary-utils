@@ -149,7 +149,8 @@ The following code uses the Place Summary Items, we'll show the code for Subject
           featureId:  "", //Leave Empty the JavaScript code will obtain it from the data-id of the DOM element
           domain: "APP_NAME", //Use the apps name [places|subjects|terms]
           perspective: "CURRENT_PERSPECTIVE.CODE",
-          feature_path: "HTTPS://YOUR_FEATURES_PATH>/%%ID%%" //Change this to your feature path you can use Drupal's mode too, just using %%ID%% to match the pattern
+          feature_path: "HTTPS://YOUR_FEATURES_PATH>/%%ID%%", //Change this to your feature path you can use Drupal's mode too, just using %%ID%% to match the pattern
+          solrUtils: relatedSolrUtils // Add the SolrUtils object
         });
         popupsSet = true;
        }
@@ -205,7 +206,8 @@ Same code but for Subjects.
           featureId:  "", //Leave Empty the JavaScript code will obtain it from the data-id of the DOM element
           domain: "APP_NAME", //Use the apps name [places|subjects|terms]
           perspective: "CURRENT_PERSPECTIVE.CODE",
-          feature_path: "HTTPS://YOUR_FEATURES_PATH>/%%ID%%" //Change this to your feature path you can use Drupal's mode too, just using %%ID%% to match the pattern
+          feature_path: "HTTPS://YOUR_FEATURES_PATH>/%%ID%%", //Change this to your feature path you can use Drupal's mode too, just using %%ID%% to match the pattern
+          solrUtils: relatedSolrUtils // Add the SolrUtils object
         });
         popupsSet = true;
        }
