@@ -67,18 +67,20 @@
     var feature_name = feature_label;
     for(var key in data[group_key]){ //parent,child, other
       var feature_block = jQuery('<div></div>').addClass('feature-block');
-      var header = jQuery('<h6></h6>').html(feature_name +" "+ key);
+      var header = jQuery('<h6></h6>').html(feature_name +" "+ key).addClass('dontend');
       feature_block.append(header);
       var relation_subject_list = jQuery('<ul class="collapsibleList"></ul>');
       var relation_subjects_ordered = Object.keys(data[group_key][key]).sort();
+      var relation_subjects_count = 0;
       for(var relation_subject in relation_subjects_ordered){
+        relation_subjects_count++;
         relation_subject = relation_subjects_ordered[relation_subject];
         var relation = jQuery('<li></li>');
         var feature_list = jQuery('<ul></ul>');
         var feature_count = 0;
         var sortedFeatures = data[group_key][key][relation_subject];
         for(var feature_index in sortedFeatures){
-          var feature_item = jQuery('<li></li>');
+          var feature_item = jQuery('<li class="dontsplit"></li>');
           var currNode = sortedFeatures[feature_index];
           var currNodeID = currNode["related_"+plugin.settings.domain+"_id_s"].replace(plugin.settings.domain+"-","");
           var currItem = jQuery("<a href="+featuresPath.replace("%%ID%%",currNodeID)+">"+currNode["related_"+plugin.settings.domain+"_header_s"]+"</a>");
@@ -88,12 +90,16 @@
           feature_list.append(feature_item);
           feature_count++;
         }
-        relation.append(jQuery('<span class="glyphicon"></span> '));
-        relation.append(relation_subject+" ("+feature_count+")");
+        var relation_title = jQuery('<div class="dontsplit"></div>');
+        relation_title.append(jQuery('<span class="glyphicon"></span> '));
+        relation_title.append(relation_subject+" ("+feature_count+")");
+        relation.append(relation_title);
         relation.append(feature_list);
+        if(feature_count == 1) {relation.addClass('dontsplit');}
         relation_subject_list.append(relation);
       }
       feature_block.append(relation_subject_list);
+      if(relation_subjects_count == 1 && feature_count == 1) {feature_block.addClass('dontsplit');}
       container.append(feature_block);
     }
   };
@@ -163,7 +169,7 @@
     var feature_name = feature_label;
     for(var key in data[group_key]){ //parent,child, other
             var feature_block = jQuery('<div></div>').addClass('feature-block');
-            var header = jQuery('<h6></h6>').append(jQuery('<span class="glyphicon"></span> '));
+            var header = jQuery('<h6></h6>').addClass('dontend').append(jQuery('<span class="glyphicon"></span> '));
             header.append(feature_name +" "+ key);
             var relation_subject_list = jQuery('<ul style="list-stype:none;" class="collapsibleList"></ul>');
             var relation_subject_item = jQuery('<li class="collapsible_list_header"></li>');
@@ -172,7 +178,7 @@
             var feature_count = 0;
             var sortedFeatures = data[group_key][key];
             for(var related_subject_index in sortedFeatures){
-              var relation = jQuery('<li></li>');
+              var relation = jQuery('<li class="dontsplit"></li>');
                 var currNode = sortedFeatures[related_subject_index];
                 var currNodeID = currNode["related_"+plugin.settings.domain+"_id_s"].replace(plugin.settings.domain+"-","");
                 relation.append("<a href="+featuresPath.replace("%%ID%%",currNodeID)+">"+currNode["related_"+plugin.settings.domain+"_header_s"]+"</a>");
@@ -183,6 +189,7 @@
             }
             relation_subject_item.append(related_subject_list);
             relation_subject_list.append(relation_subject_item);
+            if(feature_count == 1) {relation_subject_list.addClass('dontsplit');}
             feature_block.append(relation_subject_list);
             container.append(feature_block);
     }
@@ -267,7 +274,7 @@
           ancestorsnamekey  = "ancestors_closest_" + plugin.settings.perspective;
         }
         nodeinfo['ancestors'] = doc[ancestorskey] === undefined ? "" : doc[ancestorskey].reduce(function(acc,val,index){
-          var currancestor = "<a href='"+featuresPath.replace("%%id%%",val)+"'>"+doc[ancestorsnamekey][index]+"</a>"
+          var currancestor = "<a href='"+featuresPath.replace("%%ID%%",val)+"'>"+doc[ancestorsnamekey][index]+"</a>"
           acc += "/"+currancestor;
           return acc;
         }, "");

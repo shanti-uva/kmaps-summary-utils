@@ -84,10 +84,11 @@ Initializing Solr utils Library, example:
     featureId:  "FEATUREID", //Your featureId will have the format APP-ID(eg. subjects-20, places-637)
     domain: "APP_NAME", //Use the apps name [places|subjects|terms]
     perspective: "CURRENT_PERSPECTIVE.CODE",
+    tree: "TREE", //Use the apps name [places|subjects|terms]
   });
 ```
 
-After initializing the Solr utils library your plugins will be able to make us of it, so this has to be done before any of the other plugins can be executed or they won't be able to connect to solr.
+After initializing the Solr utils library your plugins will be able to make use of it, so this has to be done before any of the other plugins can be executed or they won't be able to connect to solr.
 
 Most of the functions provided by the library return promises so take that into account when using the library, for example check the following code to fill up the count, in our markup we had specified some place holders for our direct descendants counts, here is the JavaScript code that will fill that count:
 
@@ -126,21 +127,29 @@ The following code uses the Place Summary Items, we'll show the code for Subject
 
       // Functionality for columnizer
       // dontsplit = don't break these headers
-      $('.places-in-places').find('.column > h6, .column > ul > li, .column ul').addClass("dontsplit");
-      // dontend = don't end column with headers
-      $('.places-in-places').find('.column > h6, .column > ul > li').addClass("dontend");
-      $('.places-in-places').find('.feature-block').addClass("dontsplit");
+      // dontend = don't set this element at the end of a column etc
+      // here are some examples:
+      // $('.places-in-places').find('.column > h6, .column > ul > li, .column ul').addClass("dontsplit");
+      //$('.places-in-places').find('.column > h6, .column > ul > li').addClass("dontend");
+      //$('.places-in-places').find('.feature-block').addClass("dontsplit");
+
+      if(!collapsibleApplied){
+        $('ul.collapsibleList').kmapsCollapsibleList();
+        collapsibleApplied = true;
+      }
       if(!columnizedApplied){
+      // Functionality for columnizer
         $('.kmaps-list-columns:not(.subjects-in-places):not(.already_columnized)').addClass('already_columnized').columnize({
           width: 330,
           lastNeverTallest : true,
           buildOnce: true,
         });
+        //reapply kmapsCollapsibleList if the element has lost the kmapscollapsibleList plugin
+        //columnizer seems to cause a bug when the clone doesn't keep the events previously assigned
+        $('ul.collapsibleList').each(function(){
+          if(!($(this).data('plugin_kmapsCollapsibleList'))) $(this).kmapsCollapsibleList();
+        });
         columnizedApplied = true;
-      }
-      if(!collapsibleApplied){
-        $('.collapsibleList').kmapsCollapsibleList();
-        collapsibleApplied = true;
       }
       if(!popupsSet){
         jQuery('#relation_details .popover-kmaps').kmapsPopup({
@@ -183,22 +192,31 @@ Same code but for Subjects.
 
       // Functionality for columnizer
       // dontsplit = don't break these headers
-      $('.places-in-places').find('.column > h6, .column > ul > li, .column ul').addClass("dontsplit");
-      // dontend = don't end column with headers
-      $('.places-in-places').find('.column > h6, .column > ul > li').addClass("dontend");
-      $('.places-in-places').find('.feature-block').addClass("dontsplit");
-      if(!columnizedApplied){
-        $('.kmaps-list-columns:not(.subjects-in-places):not(.already_columnized)').addClass('already_columnized').columnize({
-          width: 330,
-          lastNeverTallest : true,
-          buildOnce: true,
-        });
-        columnizedApplied = true;
-      }
-      if(!collapsibleApplied){
-        $('.collapsibleList').kmapsCollapsibleList();
-        collapsibleApplied = true;
-      }
+      // dontsplit = don't have this element at the end of a column
+      // here are some examples:
+      // $('.places-in-places').find('.column > h6, .column > ul > li, .column ul').addClass("dontsplit");
+      // $('.places-in-places').find('.column > h6, .column > ul > li').addClass("dontend");
+      // $('.places-in-places').find('.feature-block').addClass("dontsplit");
+
+        if(!collapsibleApplied){
+          $('ul.collapsibleList').kmapsCollapsibleList();
+          collapsibleApplied = true;
+        }
+        if(!columnizedApplied){
+          // Functionality for columnizer
+          $('.kmaps-list-columns:not(.places-in-subjects):not(.already_columnized)').addClass('already_columnized').columnize({
+            width: 330,
+            lastNeverTallest : true,
+            buildOnce: true,
+          });
+          //reapply kmapsCollapsibleList if the element has lost the kmapscollapsibleList plugin
+          //columnizer seems to cause a bug when the clone doesn't keep the events previously assigned
+          $('ul.collapsibleList').each(function(){
+            if(!($(this).data('plugin_kmapsCollapsibleList'))) $(this).kmapsCollapsibleList();
+          });
+          columnizedApplied = true;
+        }
+
       if(!popupsSet){
         jQuery('#relation_details .popover-kmaps').kmapsPopup({
           termIndex: "https://YOURSOLRSERVER/INDEX/URL",
@@ -225,18 +243,22 @@ If we want to add some code for the `Collapse All/ Expand All` we can do it as f
 
 ```javascript
   $(".collapsible_expand_all").on("click",function(e){
-   $(".collapsible_collapse_all").removeClass("collapsible_all_btn_selected");
+    $(".collapsible_collapse_all").removeClass("collapsible_all_btn_selected");
     if (!$(".collapsible_expand_all").hasClass("collapsible_all_btn_selected")) {
-     $(".collapsible_expand_all").addClass("collapsible_all_btn_selected");
+      $(".collapsible_expand_all").addClass("collapsible_all_btn_selected");
     }
-    $('.collapsibleList').kmapsCollapsibleList('expandAll');
+    $('ul.collapsibleList').each(function(){
+      $(this).kmapsCollapsibleList('expandAll',this);
+    });
   });
   $(".collapsible_collapse_all").on("click",function(e){
-   $(".collapsible_expand_all").removeClass("collapsible_all_btn_selected");
+    $(".collapsible_expand_all").removeClass("collapsible_all_btn_selected");
     if (!$(".collapsible_collapse_all").hasClass("collapsible_all_btn_selected")) {
-     $(".collapsible_collapse_all").addClass("collapsible_all_btn_selected");
+      $(".collapsible_collapse_all").addClass("collapsible_all_btn_selected");
     }
-    $('.collapsibleList').kmapsCollapsibleList('collapseAll');
+    $('ul.collapsibleList').each(function(){
+      $(this).kmapsCollapsibleList('collapseAll',this);
+    });
   });
 ```
 
