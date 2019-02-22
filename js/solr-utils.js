@@ -30,8 +30,9 @@
 
   Plugin.init = function(options){
     var plugin = this;
-    this.settings = $.extend({}, defaults, options);
-    return plugin;
+    var solrUtil = jQuery.extend(true, {}, plugin);
+    solrUtil.settings = $.extend({}, defaults, options);
+    return solrUtil;
   };
   Plugin.getDirectDescendantCount = function(){
     var plugin = this;
@@ -110,17 +111,20 @@
     var fieldList = [
       "header",
       "id",
-      "ancestor*",
-      "caption_eng",
+      "uid",
       "related_"+ plugin.settings.domain +"_feature_type_s",
-      "related_"+ plugin.settings.domain +"_relation_label_s"
+      "related_"+ plugin.settings.domain +"_relation_label_s",
+      "related_kmaps_node_type",
+      "related_"+plugin.settings.domain+"_feature_types_t",
+      "related_"+plugin.settings.domain+"_id_s",
+      "related_"+plugin.settings.domain+"_header_s",
     ].join(",");
     if(plugin.settings.domain == "places"){
       fieldList += ",related_subjects_t";
     }
     var getSummaryElementsUrl = plugin.settings.termIndex + "/select?" +
       "&q=" + "{!child of=block_type:parent}id:" + plugin.settings.featureId +
-      "&fl=related*,related_"+plugin.settings.domain+"_feature_types_t,uid,related_"+plugin.settings.domain+"_id_s,related_"+plugin.settings.domain+"_header_s" +","+ fieldList +
+      "&fl="+ fieldList +
       "&rows=" + SOLR_ROW_LIMIT +
       "&indent=true" +
       "&wt=json" +
@@ -142,6 +146,9 @@
             acc[node_type] =  [];
           }
           var relation_label = currentNode["related_"+ plugin.settings.domain +"_relation_label_s"];
+          if(relation_label === undefined){
+            return acc;
+          }
           if(acc[node_type][relation_label] === undefined){
             acc[node_type][relation_label] = [];
           }
@@ -162,7 +169,7 @@
     });
     return dfd.promise();
   }
-  Plugin.addSubjectsSummaryItems = function addPlacesSummaryItems(feature_label,featuresPath,group_key,data){
+  Plugin.addSubjectsSummaryItems = function addSubjectsSummaryItems(feature_label,featuresPath,group_key,data){
     var plugin = this;
     var container = $('.'+plugin.settings.domain+'-in-'+plugin.settings.domain);
 
@@ -201,8 +208,6 @@
     var fieldList = [
       "header",
       "id",
-      "ancestor*",
-      "caption_eng",
       "related_"+ plugin.settings.domain +"_feature_type_s",
       "related_"+ plugin.settings.domain +"_relation_label_s"
     ].join(",");
@@ -211,7 +216,7 @@
     }
     var getSummaryElementsUrl = plugin.settings.termIndex + "/select?" +
       "&q=" + "{!child of=block_type:parent}id:" + plugin.settings.featureId +
-      "&fl=related*,related_"+plugin.settings.domain+"_feature_types_t,uid,related_"+plugin.settings.domain+"_id_s,related_"+plugin.settings.domain+"_header_s" +","+ fieldList +
+      "&fl=related_"+plugin.settings.domain+"_feature_types_t,uid,related_"+plugin.settings.domain+"_id_s,related_"+plugin.settings.domain+"_header_s" +","+ fieldList +
       "&rows=" + SOLR_ROW_LIMIT +
       "&indent=true" +
       "&wt=json" +
@@ -233,6 +238,9 @@
             acc[node_type] =  [];
           }
           var relation_label = currentNode["related_"+ plugin.settings.domain +"_relation_label_s"];
+          if(relation_label === undefined){
+            return acc;
+          }
           if(acc[node_type][relation_label] === undefined){
             acc[node_type][relation_label] = [];
           }
@@ -253,7 +261,13 @@
     const dfd = $.Deferred();
     var nodeinfo = [];
     nodeinfo['always']='present';
-    var url = plugin.settings.termIndex + '/select?q=id:' + currentFeatureId + '&fl=header,ancestor*&wt=json&json.wrf=?';
+    const fieldList = [
+      "ancestors_" + plugin.settings.perspective,
+      "ancestor_ids_" + plugin.settings.perspective,
+      "ancestor_ids_closest_" + plugin.settings.perspective,
+      "ancestors_closest_" + plugin.settings.perspective,
+    ].join(',');
+    var url = plugin.settings.termIndex + '/select?q=id:' + currentFeatureId + '&fl=header,'+ fieldList +'*&wt=json&json.wrf=?';
     $.ajax({
       url: url,
       dataType: 'jsonp',
@@ -264,22 +278,54 @@
       },
       beforesend: function () {
       },
-
       success: function (data) {
-        var doc = data.response.docs[0];
-        var ancestorskey  = "ancestor_ids_" + plugin.settings.perspective;
-        var ancestorsnamekey  = "ancestors_" + plugin.settings.perspective;
-        if( doc[ancestorskey] === undefined ) {
-          ancestorskey  = "ancestor_ids_closest_" + plugin.settings.perspective;
-          ancestorsnamekey  = "ancestors_closest_" + plugin.settings.perspective;
+        if (data.response.docs.length > 0) {
+          var doc = data.response.docs[0];
+          var ancestorskey  = "ancestor_ids_" + plugin.settings.perspective;
+          var ancestorsnamekey  = "ancestors_" + plugin.settings.perspective;
+          if( doc[ancestorskey] === undefined ) {
+            ancestorskey  = "ancestor_ids_closest_" + plugin.settings.perspective;
+            ancestorsnamekey  = "ancestors_closest_" + plugin.settings.perspective;
+          }
+          nodeinfo['ancestors'] = doc[ancestorskey] === undefined ? "" : doc[ancestorskey].reduce(function(acc,val,index){
+            var currancestor = "<a href='"+featuresPath.replace("%%ID%%",val)+"'>"+doc[ancestorsnamekey][index]+"</a>"
+            acc += "/"+currancestor;
+            return acc;
+          }, "");
+          nodeinfo['title'] = "<strong>" + doc["header"] + "</strong>";
+          dfd.resolve(nodeinfo);
         }
-        nodeinfo['ancestors'] = doc[ancestorskey] === undefined ? "" : doc[ancestorskey].reduce(function(acc,val,index){
-          var currancestor = "<a href='"+featuresPath.replace("%%ID%%",val)+"'>"+doc[ancestorsnamekey][index]+"</a>"
-          acc += "/"+currancestor;
-          return acc;
-        }, "");
-        nodeinfo['title'] = "<strong>" + doc["header"] + "</strong>";
-        dfd.resolve(nodeinfo);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getNodeCaptions =    function getNodeCaptions(key) {
+    var plugin = this;
+    const dfd = $.Deferred();
+    // Update counts from asset index
+    var nodeCaptionsUrl =
+      plugin.settings.termIndex + '/select?q=id:' + key + '&fl=caption_*&wt=json&json.wrf=?';
+    $.ajax({
+      type: "GET",
+      url: nodeCaptionsUrl,
+      dataType: "jsonp",
+      jsonp: 'json.wrf',
+      timeout: 90000,
+      error: function (e) {
+        console.error(e);
+        dfd.resolve([]);
+      },
+      success: function (data) {
+        var updates = {};
+        if(data.response.docs.length > 0){
+          $.each(data.response.docs[0], function (x, y) {
+            var caption_key = x
+            if (caption_key != null) {
+              updates[caption_key] = y[0];
+            }
+          });
+        }
+        dfd.resolve(updates);
       }
     });
     return dfd.promise();
@@ -378,7 +424,7 @@
     const dfd = $.Deferred();
     var url = plugin.settings.termIndex + "/select?" +
       "&q=" + "id:" + plugin.settings.domain + "-" + plugin.settings.featureId +
-      "&fl=*level*,ancestor*" + plugin.settings.perspective + "*" +
+      "&fl=level_"+plugin.settings.perspective+"_i,ancestor_id_" + plugin.settings.perspective + "_path" +
       "&fq=tree:" + plugin.settings.tree +
       "&indent=true" +
       "&wt=json" +
@@ -396,16 +442,6 @@
       } else {
         const path = response.docs[0]["ancestor_id_"+plugin.settings.perspective+"_path"];
         const level = response.docs[0]["level_"+plugin.settings.perspective+"_i"];
-        var url = plugin.settings.termIndex + "/select?" +
-          "&q=" + "ancestor_id_" + plugin.settings.perspective + "_path:" + path +
-          "&fl=*" +
-          "&fq=tree:" + plugin.settings.tree +
-          "&indent=true" +
-          "&wt=json" +
-          "&json.wrf=?" +
-          "&rows=" + SOLR_ROW_LIMIT +
-          "&fq=level_i:[" + 1 + "+TO+" + ( level + 1) + "]" +
-          "&limit=" + SOLR_ROW_LIMIT;
         dfd.resolve([data]);
       }
     }).fail(function(data){
@@ -413,18 +449,243 @@
     });
     return dfd.promise();
   }
-  Plugin.getAncestorTree = function getAncestorTree(options){
+  Plugin.getFullAncestorTree = function getFullAncestorTree(options){
     const plugin = this;
     var loadDescendants = options["descendants"] ? !! options["descendants"] : false;
-    var loadOnlyDirectAncestors = options["directAncestors"] ? !! options["directAncestors"] : true;
-    loadOnlyDirectAncestors = true;
+    var loadOnlyDirectAncestors = options["directAncestors"] ? options["directAncestors"] : false;
+    var sortBy = options["sortBy"] ? options["sortBy"] : "header_ssort+ASC"
+    var extraFields = options["extraFields"] ? options["extraFields"] : []
+    var nodeMarkerPredicates = options["nodeMarkerPredicates"] ? options["nodeMarkerPredicates"] : []
     const dfd = $.Deferred();
     const fieldList = [
       "header",
       "id",
-      "ancestor*",
-      "caption_eng",
-    ].join(",");
+      "ancestor_id_"+plugin.settings.perspective+"_path",
+      "level_"+plugin.settings.perspective+"_i"
+    ].concat(extraFields).join(",");
+    var url = plugin.settings.termIndex + "/select?";
+    if(!loadOnlyDirectAncestors) {
+      if(plugin.settings.featureId){
+        url += "&q=" + "id:" + plugin.settings.featureId;
+      } else {
+        url += "&q=*";
+        url += "&df=header";
+        url += "&fq=level_"+plugin.settings.perspective+"_i:[1 TO 1]";
+      }
+    } else { //TODO: if we want direct ancestors use the method getAncestorTree
+    }
+    url += "&fl=" + fieldList +
+      "&fq=tree:" + plugin.settings.tree +
+      "&indent=true" +
+      "&wt=json" +
+      "&json.wrf=?" +
+      "&rows=" + SOLR_ROW_LIMIT +
+      "&limit=" + SOLR_ROW_LIMIT;
+    $.ajax({
+      url: url,
+      dataType: 'jsonp',
+      jsonp: 'json.wrf'
+    }).done(function(data){
+      const response = data.response;
+      const buildAncestorTree = async function buildAncestorTree(doc,children) {
+        var ancestorsKey  = "ancestor_id_" + plugin.settings.perspective+"_path";
+        var ancestorNodes = doc[ancestorsKey].split("/");
+        if( doc["level_"+plugin.settings.perspective+"_i"] === undefined ) {
+          var lastElementIndex = ancestorNodes.length - 1 ;
+          plugin.settings.featureId = plugin.settings.domain+"-"+ancestorNodes[lastElementIndex];
+        }
+
+        if (ancestorNodes === undefined ) {
+          return [];
+        }
+
+        const recursiveAncestors = async function(acc,val,index){
+          var ancestorsSiblings = [];
+          var currentIndexInAncestorList = -1;
+          var siblings = [];
+          if(index != 0) {
+            const ancestorVal = ancestorNodes[index - 1];
+            const descendantsLevel = index + 1;
+            siblings = await plugin.getDescendantsInPath(ancestorNodes.slice(0,index).join("/"),descendantsLevel,sortBy, extraFields, nodeMarkerPredicates);
+          } else if( index == 0 ) { //Get all root nodes, nodes in level 1
+            siblings = await plugin.getDescendantsInPath("*",1,sortBy, extraFields, nodeMarkerPredicates);
+          }
+          for (var i in siblings) {
+            var sib = siblings[i];
+            if(sib.key == (plugin.settings.domain +"-"+val)) {
+              if(acc){
+                sib.children = [].concat(acc);
+              }
+              sib.expanded = loadDescendants;
+              if(sib.key == plugin.settings.featureId) {
+                sib.active = true;
+                sib.lazy = true;
+                sib.backColor = '#eaeaea';
+              }
+              break;
+            }
+          }
+          return siblings;
+        };
+        var resultTree = children;
+        for (var i = ancestorNodes.length - 1; i >= 0; i--) {
+          resultTree = await recursiveAncestors(resultTree,ancestorNodes[i],i);
+        }
+        return resultTree;
+      };
+      if(response.numFound > 0){
+        var doc = response.docs[0];
+        if (loadDescendants && plugin.settings.featureId) {
+          var ancestorsKey  = "ancestor_id_" + plugin.settings.perspective+"_path";
+          var currentLevelTag  = "level_" + plugin.settings.perspective+"_i";
+          var ancestorNodes = doc[ancestorsKey].split("/");
+          var currentLevel = doc[currentLevelTag];
+          if( doc[currentLevelTag] === undefined ) {
+            currentLevel  = ancestorNodes.length;
+          }
+          const featureChildren = plugin.getDescendantsInPath(doc[ancestorsKey],currentLevel + 1,sortBy, extraFields, nodeMarkerPredicates);
+          featureChildren.then(function(children){
+            var ancestorTree = buildAncestorTree(doc, children);
+            ancestorTree.then(function(ancestorTree){ dfd.resolve(ancestorTree) });
+          });
+        } else {
+          if(response.numFound >= 1){
+            var ancestorTree = buildAncestorTree(doc);
+            ancestorTree.then(function(ancestorTree){
+              dfd.resolve(ancestorTree);
+            });
+          } else {
+            const roots = plugin.getDescendantsInPath("*",1,sortBy,extraFields, nodeMarkerPredicates);
+            roots.then(function(roots){
+              dfd.resolve(roots);
+            });
+          }
+        }
+      } else {
+        dfd.resolve([]);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getDescendantsInPath = function getDescendantsInPath(path,level,sortBy,extraFields = [], nodeMarkerPredicates = []){
+    const plugin = this;
+    const dfd = $.Deferred();
+    var fieldList = [
+      "header",
+      "id",
+      "ancestor_id_"+plugin.settings.perspective+"_path",
+      "ancestor_ids_"+plugin.settings.perspective,
+      "ancestors_"+plugin.settings.perspective,
+      "ancestor_id_closest_"+plugin.settings.perspective+"_path",
+      "ancestors_closest_"+plugin.settings.perspective,
+      "level_"+plugin.settings.perspective+"_i",
+      "related_"+plugin.settings.domain+"_feature_type_s",
+      "related_"+plugin.settings.domain+"_relation_label_s",
+    ].concat(extraFields).join(",");
+    if(plugin.settings.domain == "places"){
+      fieldList += ",related_subjects_t";
+    }
+    var url = plugin.settings.termIndex + "/select?" +
+      //child count
+      "&q=" +path+
+      "&sort=" +sortBy+
+      "&df=ancestor_id_"+plugin.settings.perspective+"_path" +
+      "&fq=level_" + plugin.settings.perspective + "_i:[" + level + "+TO+" + (level + 1) + "]" +
+      "&fq={!tag=children}level_" + plugin.settings.perspective + "_i:[" + level + "+TO+" + (level + 0) + "]" +
+      "&facet.mincount=2" +
+      "&facet.limit=-1" +
+      "&facet.field={!ex=children}ancestor_id_"+plugin.settings.perspective+"_path" +
+      //end child count
+      "&fl=" + fieldList +
+      "&facet=true" +
+      "&wt=json" +
+      "&limit=" + SOLR_ROW_LIMIT +
+      "&indent=true" +
+      "&wt=json" +
+      "&json.wrf=?" +
+      "&rows=" + SOLR_ROW_LIMIT;
+    $.ajax({
+      url: url,
+      dataType: 'jsonp',
+      jsonp: 'json.wrf'
+    }).done(function(data){
+      const response = data.response;
+      const facetCount = data.facet_counts.facet_fields["ancestor_id_"+plugin.settings.perspective+"_path"]
+      var facetHash = {};
+      for (var i = 0; i < facetCount.length; i = i + 2) {
+        facetHash[facetCount[i]] = facetCount[i+1];
+      }
+      if(response.numFound > 0){
+        const result = response.docs.reduce(function(acc,currentNode,index){
+          const regex = new RegExp(plugin.settings.domain+"-(.*)");
+          const match = currentNode["id"].match(regex);
+          var key = !match ? "" : match[1] === undefined? "" : match[1];
+          var feature_type = "";
+          var ancestorsKey  = "ancestor_ids_" + plugin.settings.perspective;
+          var ancestorsNameKey  = "ancestors_" + plugin.settings.perspective;
+          if( currentNode[ancestorsKey] === undefined ) {
+            ancestorsKey  = "ancestor_ids_closest_" + plugin.settings.perspective;
+            ancestorsNameKey  = "ancestors_closest_" + plugin.settings.perspective;
+          }
+          var marks = []
+          if (nodeMarkerPredicates.length > 0){
+            nodeMarkerPredicates.forEach(function(marker, index){
+              //marker['field'] marker['value'] marker['operation'] marker['mark']
+              if(marker['operation'] == '==') {
+                if (JSON.stringify(currentNode[marker['field']]) == JSON.stringify(marker.value)) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == 'includes') {
+                if (currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == '!includes') {
+                if (!currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              }
+            });
+          }
+          const child = {
+            title: currentNode["header"],
+            displayPath: "",//currentNode[ancestorsNameKey].join("/"),
+            key: plugin.settings.domain +"-"+key,
+            expanded: false,
+            lazy: true,
+            href: plugin.settings.featuresPath.replace("%%ID%%",key),
+            marks: marks,
+          };
+          if(facetHash[currentNode["ancestor_id_"+plugin.settings.perspective+"_path"]] === undefined) {
+              child.lazy = false;
+          }
+          return acc !== undefined ? acc.concat([child]): [child];
+        }, []);
+        dfd.resolve(result);
+      } else {
+        dfd.resolve([]);
+      }
+    });
+    return dfd.promise();
+  }
+  Plugin.getAncestorTree = function getAncestorTree(options){
+    const plugin = this;
+    var loadDescendants = options["descendants"] ? !! options["descendants"] : false;
+    var loadOnlyDirectAncestors = options["directAncestors"] ? !!options["directAncestors"] : false;
+    var fullDetail = options["descendantsFullDetail"] ? !!options["descendantsFullDetail"] : false;
+    var sortBy = options["sortBy"] ? options["sortBy"] : "header_ssort+ASC"
+    var extraFields = options["extraFields"] ? options["extraFields"] : []
+    var nodeMarkerPredicates = options["nodeMarkerPredicates"] ? options["nodeMarkerPredicates"] : []
+    const dfd = $.Deferred();
+    const fieldList = [
+      "header",
+      "id",
+      "ancestor_id_"+plugin.settings.perspective+"_path",
+      "ancestor_ids_"+plugin.settings.perspective,
+      "ancestors_"+plugin.settings.perspective,
+      "ancestor_id_closest_"+plugin.settings.perspective+"_path",
+      "ancestor_ids_closest_"+plugin.settings.perspective,
+      "level_"+plugin.settings.perspective+"_i",
+    ].concat(extraFields).join(",");
     var url = plugin.settings.termIndex + "/select?";
     if(loadOnlyDirectAncestors) {
       if(plugin.settings.featureId){
@@ -434,7 +695,7 @@
         url += "&df=header";
         url += "&fq=level_"+plugin.settings.perspective+"_i:[1 TO 1]";
       }
-    } else { //TODO: In feature implementations we should define what to do to extract all ancestors not just direct, currently it always just gets the direct ancestors.
+    } else { //TODO: if we want all ancestors use the method getFullAncestorTree
     }
     url += "&fl=" + fieldList +
       "&fq=tree:" + plugin.settings.tree +
@@ -442,8 +703,8 @@
       "&wt=json" +
       "&json.wrf=?" +
       "&rows=" + SOLR_ROW_LIMIT +
-      "&limit=" + SOLR_ROW_LIMIT +
-      "&sort=header_ssort+asc";
+      "&limit=" + SOLR_ROW_LIMIT+
+      "&sort=" +sortBy;
     $.ajax({
       url: url,
       dataType: 'jsonp',
@@ -468,7 +729,7 @@
             //[].concat to handle the instance when the children are sent as an argument
             children: acc === undefined ? null : [].concat(acc)
           };
-          if( Number(val) === Number(plugin.settings.featureId)) {
+          if( node.key === plugin.settings.featureId) {
             node.active = true;
             node.backColor= '#eaeaea';
           }
@@ -479,7 +740,7 @@
       if(response.numFound > 0){
         var doc = response.docs[0];
         if (loadDescendants && plugin.settings.featureId) {
-          const featureChildren = plugin.getDescendantTree(plugin.settings.featureId);
+          const featureChildren = plugin.getDescendantTree(plugin.settings.featureId,fullDetail,sortBy, extraFields, nodeMarkerPredicates);
           featureChildren.then(function(value){ dfd.resolve(buildTree(doc, value)) });
         } else {
           if(response.numFound > 1){
@@ -500,20 +761,25 @@
     });
     return dfd.promise();
   }
-  Plugin.getDescendantTree = function getDescendantTree(featureId){
+  Plugin.getDescendantTree = function getDescendantTree(featureId,fullDetail,sortBy, extraFields = [], nodeMarkerPredicates =  []){
     const plugin = this;
+    fullDetail = fullDetail || false;
     const dfd = $.Deferred();
     var fieldList = [
       "header",
       "id",
-      "ancestor*",
+      "ancestor_id_"+plugin.settings.perspective+"_path",
+      "ancestors_"+plugin.settings.perspective,
+      "ancestor_id_closest_"+plugin.settings.perspective+"_path",
+      "ancestor_ids_closest_"+plugin.settings.perspective,
       "caption_eng",
       "related_"+plugin.settings.domain+"_feature_type_s",
       "related_"+plugin.settings.domain+"_relation_label_s"
-    ].join(",");
+    ].concat(extraFields).join(",");
     if(plugin.settings.domain == "places"){
       fieldList += ",related_subjects_t";
     }
+    var sortByQuery = sortBy ? sortBy : "related_"+plugin.settings.domain+"_header_s+ASC";
     var url = plugin.settings.termIndex + "/select?" +
       //V3 child count
       "&q=" + "{!child of=block_type:parent}id:" + featureId +
@@ -531,7 +797,7 @@
       "&indent=true" +
       "&wt=json" +
       "&json.wrf=?" +
-      "&sort=related_"+plugin.settings.domain+"_header_s+asc" +
+      "&sort="+ sortByQuery +
       "&rows=" + SOLR_ROW_LIMIT;
     $.ajax({
       url: url,
@@ -561,10 +827,12 @@
             ancestorsKey  = "ancestor_ids_closest_" + plugin.settings.perspective;
             ancestorsNameKey  = "ancestors_closest_" + plugin.settings.perspective;
           }
+          var title = "<strong>" + currentNode["related_"+plugin.settings.domain+"_header_s"] + "</strong>";
+          if(fullDetail) {
+            title += " (" +feature_type + currentNode["related_"+plugin.settings.domain+"_relation_label_s"]+")";
+          }
           const child = {
-            title: "<strong>" + currentNode["related_"+plugin.settings.domain+"_header_s"] + "</strong> (" +
-            feature_type +
-            currentNode["related_"+plugin.settings.domain+"_relation_label_s"]+")",
+            title: title,
             displayPath: "",//currentNode[ancestorsNameKey].join("/"),
             key: plugin.settings.domain +"-"+key,
             expanded: false,
