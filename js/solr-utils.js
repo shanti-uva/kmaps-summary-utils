@@ -23,6 +23,7 @@
       featureId: "places-1",
       domain: "places",
       perspective: "general",
+      view: 'roman.scholar',
       tree: 'places',
       featuresPath: "/features/%%ID%%"
     },
@@ -457,8 +458,8 @@
     var extraFields = options["extraFields"] ? options["extraFields"] : []
     var nodeMarkerPredicates = options["nodeMarkerPredicates"] ? options["nodeMarkerPredicates"] : []
     const dfd = $.Deferred();
-    const fieldList = [
-      "header",
+    const head = plugin.settings.view.blank? "header" : "header:name_"+plugin.settings.view
+    const fieldList = head + [
       "id",
       "ancestor_id_"+plugin.settings.perspective+"_path",
       "level_"+plugin.settings.perspective+"_i"
@@ -571,7 +572,7 @@
     const plugin = this;
     const dfd = $.Deferred();
     var fieldList = [
-      "header",
+      "header:name_"+plugin.settings.view,
       "id",
       "ancestor_id_"+plugin.settings.perspective+"_path",
       "ancestor_ids_"+plugin.settings.perspective,
@@ -677,7 +678,7 @@
     var nodeMarkerPredicates = options["nodeMarkerPredicates"] ? options["nodeMarkerPredicates"] : []
     const dfd = $.Deferred();
     const fieldList = [
-      "header",
+      "header:name_"+plugin.settings.view,
       "id",
       "ancestor_id_"+plugin.settings.perspective+"_path",
       "ancestor_ids_"+plugin.settings.perspective,
@@ -766,7 +767,7 @@
     fullDetail = fullDetail || false;
     const dfd = $.Deferred();
     var fieldList = [
-      "header",
+      "header:name_"+plugin.settings.view,
       "id",
       "ancestor_id_"+plugin.settings.perspective+"_path",
       "ancestors_"+plugin.settings.perspective,
