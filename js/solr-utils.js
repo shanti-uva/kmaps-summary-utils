@@ -683,6 +683,7 @@
       "ancestor_id_"+plugin.settings.perspective+"_path",
       "ancestor_ids_"+plugin.settings.perspective,
       "ancestors_"+plugin.settings.perspective,
+      "ancestors_closest_"+plugin.settings.perspective,
       "ancestor_id_closest_"+plugin.settings.perspective+"_path",
       "ancestor_ids_closest_"+plugin.settings.perspective,
       "level_"+plugin.settings.perspective+"_i",
