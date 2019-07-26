@@ -644,6 +644,8 @@
                 if (!currentNode[marker['field']].includes(marker['value'])) {
                   marks.push(marker['mark']);
                 }
+              } else if(marker['operation'] == 'markAll') {
+                  marks.push(marker['mark']);
               }
             });
           }
@@ -720,6 +722,27 @@
           ancestorsKey  = "ancestor_ids_closest_" + plugin.settings.perspective;
           ancestorsNameKey  = "ancestors_closest_" + plugin.settings.perspective;
         }
+          var marks = []
+          if (nodeMarkerPredicates.length > 0){
+            nodeMarkerPredicates.forEach(function(marker, index){
+              //marker['field'] marker['value'] marker['operation'] marker['mark']
+              if(marker['operation'] == '==') {
+                if (JSON.stringify(currentNode[marker['field']]) == JSON.stringify(marker.value)) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == 'includes') {
+                if (currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == '!includes') {
+                if (!currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == 'markAll') {
+                  marks.push(marker['mark']);
+              }
+            });
+          }
         const result = doc[ancestorsKey] === undefined ? [] : doc[ancestorsKey].reduceRight(function(acc,val,index){
           const node = {
             title: "<strong>" + doc[ancestorsNameKey][index] + "</strong>",
@@ -729,7 +752,8 @@
             lazy: true,
             displayPath: doc[ancestorsNameKey].join("/"),
             //[].concat to handle the instance when the children are sent as an argument
-            children: acc === undefined ? null : [].concat(acc)
+            children: acc === undefined ? null : [].concat(acc),
+            marks: marks,
           };
           if( node.key === plugin.settings.featureId) {
             node.active = true;
@@ -833,6 +857,27 @@
           if(fullDetail) {
             title += " (" +feature_type + currentNode["related_"+plugin.settings.domain+"_relation_label_s"]+")";
           }
+          var marks = []
+          if (nodeMarkerPredicates.length > 0){
+            nodeMarkerPredicates.forEach(function(marker, index){
+              //marker['field'] marker['value'] marker['operation'] marker['mark']
+              if(marker['operation'] == '==') {
+                if (JSON.stringify(currentNode[marker['field']]) == JSON.stringify(marker.value)) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == 'includes') {
+                if (currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == '!includes') {
+                if (!currentNode[marker['field']].includes(marker['value'])) {
+                  marks.push(marker['mark']);
+                }
+              } else if(marker['operation'] == 'markAll') {
+                  marks.push(marker['mark']);
+              }
+            });
+          }
           const child = {
             title: title,
             displayPath: "",//currentNode[ancestorsNameKey].join("/"),
@@ -840,6 +885,7 @@
             expanded: false,
             lazy: true,
             href: plugin.settings.featuresPath.replace("%%ID%%",key),
+            marks: marks,
           };
           if(currentNode["child_count"] !== undefined) {
             if(currentNode["child_count"]["numFound"] === 0) {
